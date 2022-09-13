@@ -16,10 +16,10 @@ ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves", default-feature
 ark-bw6-761 = { git = "https://github.com/arkworks-rs/curves", rev = "677b4ae751a274037880ede86e9b6f30f62635af"}
 
 # Jellyfish
-jf-plonk = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git" }
-jf-rescue = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git" }
-jf-primitives = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git" }
-jf-utils = { git = "https://github.com/EspressoSystems/jellyfish.git" }
+jf-plonk = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git", tag = "0.1.2" }
+jf-rescue = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git", tag = "0.1.2" }
+jf-primitives = { features=["std"], git = "https://github.com/EspressoSystems/jellyfish.git", tag = "0.1.2" }
+jf-utils = { git = "https://github.com/EspressoSystems/jellyfish.git", tag = "0.1.2" }
 
 anyhow = { version = "^1.0", default-features = false }
 displaydoc = { version = "0.2.3", default-features = false }
