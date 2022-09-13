@@ -11,6 +11,7 @@
 
 //! This module implements a few examples with predicates.
 
+mod dex_example;
 mod restricted_zcash_example;
 mod tornado_cash_example;
 pub(crate) mod zcash_example;
