@@ -180,12 +180,16 @@ where
             .create_variable(InnerScalarField::from(entire_input_notes.len() as u64))?;
         let num_output_records = birth_circuit
             .create_variable(InnerScalarField::from(entire_output_records.len() as u64))?;
-        birth_circuit.equal_gate(num_input_notes, num_output_records)?;
-        // let two_var = birth_circuit.create_constant_variable(InnerScalarField::from(2u64))?;
-        // let is_input_two = birth_circuit.check_equal(num_input_notes, two_var)?;
-        // let is_output_two = birth_circuit.check_equal(num_output_records, two_var)?;
-        // let res = birth_circuit.logic_and(is_input_two, is_output_two)?;
-        // birth_circuit.equal_gate(res, birth_circuit.one())?;
+
+        // expect two input notes and two output records, plus one fee record for each
+        let num_of_fee_records = 1u64;
+        let expected_notes_var = birth_circuit
+            .create_constant_variable(InnerScalarField::from(2u64 + num_of_fee_records))?;
+        let is_input_two = birth_circuit.check_equal(num_input_notes, expected_notes_var)?;
+        let is_output_two = birth_circuit.check_equal(num_output_records, expected_notes_var)?;
+        // they should both be satisfied
+        let res = birth_circuit.logic_and(is_input_two, is_output_two)?;
+        birth_circuit.equal_gate(res, birth_circuit.one())?;
 
         // pad the birth circuit with dummy gates so that it will always be greater
         // than the supported death ones
