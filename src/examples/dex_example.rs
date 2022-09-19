@@ -74,7 +74,6 @@
 //! implemented via the default implementation.
 //! So here we only need to write the logic for the death predicate.
 
-use super::{BirthPredicateCircuit, DeathPredicateCircuit, PredicateOps};
 use crate::{
     circuit::{
         local_data::local_data_commitment_circuit,
@@ -90,9 +89,9 @@ use crate::{
     structs::{NoteInput, PolicyIdentifier, RecordOpening},
     types::{InnerScalarField, InnerUniversalParam, OuterUniversalParam},
 };
-use ark_std::{format, vec, vec::Vec, Zero};
+use ark_std::{vec, vec::Vec, Zero};
 
-use jf_plonk::circuit::{Arithmetization, Circuit, PlonkCircuit, Variable};
+use jf_plonk::circuit::{Arithmetization, Circuit, PlonkCircuit};
 
 // A simple wrapper of predicate circuit
 struct DexPredicateCircuit(PredicateCircuit);
@@ -470,17 +469,17 @@ mod test {
         errors::DPCApiError,
         examples::tests::{build_notes, build_notes_and_records},
         keys::KeyChainMasterKey,
-        proofs::{transaction::*, universal_setup_inner, universal_setup_outer},
+        proofs::{transaction::*},
         structs::compress_local_data,
         types::InnerScalarField,
     };
-    use ark_bw6_761::g1::Parameters;
+    
     use ark_ec::bls12::Bls12;
     use ark_ff::{UniformRand, Zero};
     use ark_serialize::CanonicalDeserialize;
     use ark_std::{rand::Rng, test_rng, vec};
     use jf_plonk::proof_system::structs::UniversalSrs;
-    use jf_utils::field_elem::deserialize;
+    
 
     const NON_NATIVE_ASSET_ID: u64 = 3u64;
 
@@ -570,7 +569,7 @@ mod test {
         let rng = &mut test_rng();
 
         let (dpc_pk, dpc_vk, mut birth_predicate, birth_pid, mut death_predicate, death_pid) =
-            DexPredicate::preprocess(&inner_srs, &outer_srs, num_non_fee_inputs + 1)?;
+            DexPredicate::preprocess(inner_srs, outer_srs, num_non_fee_inputs + 1)?;
 
         // generate proof generation key and addresses
         let mut wsk = [0u8; 32];
@@ -594,8 +593,8 @@ mod test {
             fee_in,
             fee_out,
             NON_NATIVE_ASSET_ID,
-            &input_note_values,
-            &output_note_values,
+            input_note_values,
+            output_note_values,
             birth_pid,
             death_pid,
         )?;
