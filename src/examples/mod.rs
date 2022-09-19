@@ -14,6 +14,7 @@
 mod dex_example;
 mod restricted_zcash_example;
 mod tornado_cash_example;
+mod generate_test_setup;
 pub(crate) mod zcash_example;
 
 use crate::{

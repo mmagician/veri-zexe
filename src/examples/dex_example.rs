@@ -356,6 +356,8 @@ fn valid_note_gate(
 
 #[cfg(test)]
 mod test {
+    use std::{println, time::Instant};
+
     use super::*;
     use crate::{
         constants::MEMO_LEN,
@@ -375,11 +377,21 @@ mod test {
     #[ignore]
     fn test_tornado_cash_example_transaction() -> Result<(), DPCApiError> {
         // universal setup
-        let rng = &mut test_rng();
-        let max_inner_degree = (1 << 17) + 4;
-        let inner_srs = universal_setup_inner(max_inner_degree, rng)?;
-        let max_outer_degree = (1 << 18) + 4;
-        let outer_srs = universal_setup_outer(max_outer_degree, rng)?;
+        // time how long it takes to do the universal setup
+
+        // let rng = &mut test_rng();
+        // let max_inner_degree = (1 << 17) + 4;
+        let timer = Instant::now();
+        // read the inner test srs from file
+        let reader = std::io::BufReader::new(std::fs::File::open("src/examples/test_setup_inner_17.bin").unwrap());
+        let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> = UniversalSrs::deserialize_unchecked(reader)?;
+        // let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> = universal_setup_inner(max_inner_degree, rng)?;
+        println!("inner_srs setup time: {:?}", timer.elapsed());
+        // let max_outer_degree = (1 << 18) + 4;
+        // let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = universal_setup_outer(max_outer_degree, rng)?;
+        let reader = std::io::BufReader::new(std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap());
+        let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = UniversalSrs::deserialize_unchecked(reader)?;
+        println!("outer_srs setup time: {:?}", timer.elapsed());
 
         // good path: 3 inputs
         let fee_in = 300;
