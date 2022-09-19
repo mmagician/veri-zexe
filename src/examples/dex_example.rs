@@ -165,32 +165,6 @@ impl DeathPredicateCircuit for DexPredicateCircuit {
             &comm_local_data_var,
         )?;
 
-        // each input/output value is within {0, 1, 5, 10, 50, 100}
-        let five_var = death_circuit.create_constant_variable(InnerScalarField::from(5))?;
-        let ten_var = death_circuit.create_constant_variable(InnerScalarField::from(10))?;
-        let fifty_var = death_circuit.create_constant_variable(InnerScalarField::from(50))?;
-        let hundred_var = death_circuit.create_constant_variable(InnerScalarField::from(100))?;
-        let vars = [
-            death_circuit.zero(),
-            death_circuit.one(),
-            five_var,
-            ten_var,
-            fifty_var,
-            hundred_var,
-        ];
-
-        for note in entire_input_notes_vars.iter().skip(1) {
-            valid_note_gate(
-                &mut death_circuit,
-                note.record_opening_var.payload.data[1],
-                &vars,
-            )?;
-        }
-
-        for record in entire_outputs_vars.iter().skip(1) {
-            valid_note_gate(&mut death_circuit, record.payload.data[1], &vars)?;
-        }
-
         // pad the death circuit with dummy gates
         let current_gate_count = death_circuit.num_gates();
         let target_gate_count = Self::preprocessed_birth_circuit(entire_input_notes.len())?
@@ -324,34 +298,6 @@ impl<'a> PredicateOps<'a> for DexPredicate<'a> {
         self.0.update_witness(final_circuit.0)?;
         Ok(())
     }
-}
-
-// argue that a variable is of one of the following values
-// [0, 1, 5, 10, 50, 100]
-fn valid_note_gate(
-    circuit: &mut PlonkCircuit<InnerScalarField>,
-    var: Variable,
-    note_vars: &[Variable],
-) -> Result<(), DPCApiError> {
-    let is_zero = circuit.check_equal(var, note_vars[0])?;
-    let is_one = circuit.check_equal(var, note_vars[1])?;
-    let is_five = circuit.check_equal(var, note_vars[2])?;
-    let is_ten = circuit.check_equal(var, note_vars[3])?;
-    let is_fifty = circuit.check_equal(var, note_vars[4])?;
-    let is_hundred = circuit.check_equal(var, note_vars[5])?;
-
-    // in fact it makes more sense to use an xor gate here;
-    // but or gate is also sufficient
-    let mut res = circuit.logic_or(is_zero, is_one)?;
-    res = circuit.logic_or(res, is_one)?;
-    res = circuit.logic_or(res, is_five)?;
-    res = circuit.logic_or(res, is_ten)?;
-    res = circuit.logic_or(res, is_fifty)?;
-    res = circuit.logic_or(res, is_hundred)?;
-
-    // enforce res is true
-    circuit.equal_gate(res, circuit.one())?;
-    Ok(())
 }
 
 #[cfg(test)]
