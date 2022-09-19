@@ -469,17 +469,16 @@ mod test {
         errors::DPCApiError,
         examples::tests::{build_notes, build_notes_and_records},
         keys::KeyChainMasterKey,
-        proofs::{transaction::*},
+        proofs::transaction::*,
         structs::compress_local_data,
         types::InnerScalarField,
     };
-    
+
     use ark_ec::bls12::Bls12;
     use ark_ff::{UniformRand, Zero};
     use ark_serialize::CanonicalDeserialize;
     use ark_std::{rand::Rng, test_rng, vec};
     use jf_plonk::proof_system::structs::UniversalSrs;
-    
 
     const NON_NATIVE_ASSET_ID: u64 = 3u64;
 
@@ -489,8 +488,6 @@ mod test {
         // universal setup
         // time how long it takes to do the universal setup
 
-        // let rng = &mut test_rng();
-        // let max_inner_degree = (1 << 17) + 4;
         let timer = Instant::now();
         // read the inner test srs from file
         let reader = std::io::BufReader::new(
@@ -498,10 +495,7 @@ mod test {
         );
         let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> =
             UniversalSrs::deserialize_unchecked(reader)?;
-        // let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> = universal_setup_inner(max_inner_degree, rng)?;
         println!("inner_srs setup time: {:?}", timer.elapsed());
-        // let max_outer_degree = (1 << 18) + 4;
-        // let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = universal_setup_outer(max_outer_degree, rng)?;
         let reader = std::io::BufReader::new(
             std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap(),
         );
