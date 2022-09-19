@@ -122,6 +122,56 @@ impl BirthPredicateCircuit for DexPredicateCircuit {
     // Our death circuit performs a valid_note_gate check which will
     // not exceed 1024 constraints
     const PAD_GATES: usize = 1024;
+
+    fn gen_birth_circuit_core(
+        entire_input_notes: &[NoteInput],
+        entire_output_records: &[RecordOpening],
+        memo: &[InnerScalarField; MEMO_LEN],
+        blinding_local_data: InnerScalarField,
+        comm_local_data: InnerScalarField,
+    ) -> Result<Self, DPCApiError> {
+        let mut birth_circuit = PlonkCircuit::new_turbo_plonk();
+
+        // build all the variables
+        let comm_local_data_var = birth_circuit.create_public_variable(comm_local_data)?;
+        let blinding_local_data_var = birth_circuit.create_variable(blinding_local_data)?;
+
+        let entire_input_notes_vars = entire_input_notes
+            .iter()
+            .map(|x| NoteInputVar::new(&mut birth_circuit, x))
+            .collect::<Result<Vec<_>, _>>()?;
+        let entire_outputs_vars = entire_output_records
+            .iter()
+            .map(|x| RecordOpeningVar::new(&mut birth_circuit, x))
+            .collect::<Result<Vec<_>, _>>()?;
+        let memo_vars = memo
+            .iter()
+            .map(|x| birth_circuit.create_variable(*x))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // 1. argue that the local data is correct w.r.t. to the commitment of local
+        // data
+        local_data_commitment_circuit(
+            &mut birth_circuit,
+            &entire_input_notes_vars,
+            &entire_outputs_vars,
+            &memo_vars,
+            &blinding_local_data_var,
+            &comm_local_data_var,
+        )?;
+
+        // 2. enforce that there are only 2 input notes and 2 output records
+        let num_input_notes = birth_circuit.create_variable(InnerScalarField::from(entire_input_notes.len() as u64))?;
+        let num_output_records = birth_circuit.create_variable(InnerScalarField::from(entire_output_records.len() as u64))?;
+        birth_circuit.equal_gate(num_input_notes, num_output_records)?;
+
+        // pad the birth circuit with dummy gates so that it will always be greater
+        // than the supported death ones
+        birth_circuit.pad_gate(Self::PAD_GATES);
+
+        Ok(Self::from(PredicateCircuit(birth_circuit)))
+    }
+
 }
 
 // Extra, application dependent logics are defined in this circuit.
@@ -339,12 +389,12 @@ mod test {
         let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = UniversalSrs::deserialize_unchecked(reader)?;
         println!("outer_srs setup time: {:?}", timer.elapsed());
 
-        // good path: 3 inputs
+        // good path: input.len() == output.len()
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
-        let input_note_values = [10, 5, 5];
-        let output_note_values = [0, 10, 10];
+        let input_note_values = [10, 5];
+        let output_note_values = [0, 10];
 
         assert!(test_example_transaction_helper(
             &inner_srs,
@@ -357,12 +407,12 @@ mod test {
         )
         .is_ok());
 
-        // bad path: not a tornado cash note
+        // bad path: input.len() != output.len()
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
-        let input_note_values = [10, 30, 60, 0];
-        let output_note_values = [22, 33, 44, 1];
+        let input_note_values = [10, 5];
+        let output_note_values = [0, 10, 5];
 
         assert!(test_example_transaction_helper(
             &inner_srs,
@@ -375,23 +425,6 @@ mod test {
         )
         .is_err());
 
-        // bad path: input sum != output sum
-        let fee_in = 300;
-        let fee = 5;
-        let fee_out = 295;
-        let input_note_values = [10, 30, 60, 0];
-        let output_note_values = [22, 33, 44, 81093];
-
-        assert!(test_example_transaction_helper(
-            &inner_srs,
-            &outer_srs,
-            fee_in,
-            fee,
-            fee_out,
-            input_note_values.as_ref(),
-            output_note_values.as_ref(),
-        )
-        .is_err());
         Ok(())
     }
 
@@ -406,7 +439,6 @@ mod test {
         output_note_values: &[u64],
     ) -> Result<(), DPCApiError> {
         let num_non_fee_inputs = input_note_values.len();
-        assert_eq!(num_non_fee_inputs, output_note_values.len());
 
         let rng = &mut test_rng();
 
