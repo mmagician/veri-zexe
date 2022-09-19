@@ -90,7 +90,8 @@ use crate::{
     structs::{NoteInput, PolicyIdentifier, RecordOpening},
     types::{InnerScalarField, InnerUniversalParam, OuterUniversalParam},
 };
-use ark_std::vec::Vec;
+use ark_std::{format, vec, vec::Vec, Zero};
+
 use jf_plonk::circuit::{Arithmetization, Circuit, PlonkCircuit, Variable};
 
 // A simple wrapper of predicate circuit
@@ -110,11 +111,19 @@ impl<'a> From<Predicate<'a>> for DexPredicate<'a> {
     }
 }
 
+enum BirthPredicateMode {
+    Mint,
+    Conserve,
+}
+
 // Using the default birth predicate circuit to argue
 // 1. all asset_ids match
 // 2. sum inputs = sum outputs
 // 3. all the inputs are correctly w.r.t. commitment
-impl BirthPredicateCircuit for DexPredicateCircuit {
+impl DexPredicateCircuit
+where
+    Self: Sized + From<PredicateCircuit>,
+{
     // Our code requires that #gates in a birth circuit to be greater
     // than that of a death circuit. If birth circuit has smaller size,
     // we need to pad the birth circuit to make it larger.
@@ -129,6 +138,7 @@ impl BirthPredicateCircuit for DexPredicateCircuit {
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
+        mode: Option<BirthPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         let mut birth_circuit = PlonkCircuit::new_turbo_plonk();
 
@@ -161,9 +171,16 @@ impl BirthPredicateCircuit for DexPredicateCircuit {
         )?;
 
         // 2. enforce that there are only 2 input notes and 2 output records
-        let num_input_notes = birth_circuit.create_variable(InnerScalarField::from(entire_input_notes.len() as u64))?;
-        let num_output_records = birth_circuit.create_variable(InnerScalarField::from(entire_output_records.len() as u64))?;
+        let num_input_notes = birth_circuit
+            .create_variable(InnerScalarField::from(entire_input_notes.len() as u64))?;
+        let num_output_records = birth_circuit
+            .create_variable(InnerScalarField::from(entire_output_records.len() as u64))?;
         birth_circuit.equal_gate(num_input_notes, num_output_records)?;
+        // let two_var = birth_circuit.create_constant_variable(InnerScalarField::from(2u64))?;
+        // let is_input_two = birth_circuit.check_equal(num_input_notes, two_var)?;
+        // let is_output_two = birth_circuit.check_equal(num_output_records, two_var)?;
+        // let res = birth_circuit.logic_and(is_input_two, is_output_two)?;
+        // birth_circuit.equal_gate(res, birth_circuit.one())?;
 
         // pad the birth circuit with dummy gates so that it will always be greater
         // than the supported death ones
@@ -172,10 +189,56 @@ impl BirthPredicateCircuit for DexPredicateCircuit {
         Ok(Self::from(PredicateCircuit(birth_circuit)))
     }
 
+    fn preprocessed_birth_circuit(entire_input_size: usize) -> Result<Self, DPCApiError> {
+        let proof_gen_key = crate::keys::ProofGenerationKey::default();
+
+        let dummy_blinding_local_data = InnerScalarField::default();
+        let dummy_comm_local_data = InnerScalarField::default();
+        let dummy_input_notes = vec![NoteInput::dummy(&proof_gen_key); entire_input_size];
+        let dummy_output_records = vec![RecordOpening::dummy(); entire_input_size];
+        let dummy_memo = [InnerScalarField::zero(); MEMO_LEN];
+
+        Self::gen_birth_circuit_core(
+            &dummy_input_notes,
+            &dummy_output_records,
+            &dummy_memo,
+            dummy_blinding_local_data,
+            dummy_comm_local_data,
+            None,
+        )
+    }
+
+    fn gen_birth_circuit(
+        entire_input_notes: &[NoteInput],
+        entire_output_records: &[RecordOpening],
+        memo: &[InnerScalarField; MEMO_LEN],
+        blinding_local_data: InnerScalarField,
+        comm_local_data: InnerScalarField,
+        mode: Option<BirthPredicateMode>,
+    ) -> Result<Self, DPCApiError> {
+        if entire_input_notes.len() != entire_output_records.len() {
+            return Err(DPCApiError::GeneralError(format!(
+                "Input length ({}) does not match output length ({})",
+                entire_input_notes.len(),
+                entire_output_records.len()
+            )));
+        }
+        Self::gen_birth_circuit_core(
+            entire_input_notes,
+            entire_output_records,
+            memo,
+            blinding_local_data,
+            comm_local_data,
+            mode,
+        )
+    }
 }
 
 // Extra, application dependent logics are defined in this circuit.
-impl DeathPredicateCircuit for DexPredicateCircuit {
+impl DexPredicateCircuit
+where
+    Self: Sized + From<PredicateCircuit>,
+{
     // we want to check:
     //  - it uses a same local data commitment as the birth predicate
     //  - each input/output value is within {0, 1, 5, 10, 50, 100}
@@ -225,9 +288,46 @@ impl DeathPredicateCircuit for DexPredicateCircuit {
 
         Ok(DexPredicateCircuit(PredicateCircuit(death_circuit)))
     }
+
+    fn preprocessed_death_circuit(entire_input_size: usize) -> Result<Self, DPCApiError> {
+        let proof_gen_key = crate::keys::ProofGenerationKey::default();
+
+        let dummy_blinding_local_data = InnerScalarField::default();
+        let dummy_comm_local_data = InnerScalarField::default();
+        let dummy_input_notes = vec![NoteInput::dummy(&proof_gen_key); entire_input_size];
+        let dummy_output_records = vec![RecordOpening::dummy(); entire_input_size];
+        let dummy_memo = [InnerScalarField::zero(); MEMO_LEN];
+
+        Self::gen_death_circuit_core(
+            &dummy_input_notes,
+            &dummy_output_records,
+            &dummy_memo,
+            dummy_blinding_local_data,
+            dummy_comm_local_data,
+        )
+    }
+
+    fn gen_death_circuit(
+        entire_input_notes: &[NoteInput],
+        entire_output_records: &[RecordOpening],
+        memo: &[InnerScalarField; MEMO_LEN],
+        blinding_local_data: InnerScalarField,
+        comm_local_data: InnerScalarField,
+    ) -> Result<Self, DPCApiError> {
+        Self::gen_death_circuit_core(
+            entire_input_notes,
+            entire_output_records,
+            memo,
+            blinding_local_data,
+            comm_local_data,
+        )
+    }
 }
 
-impl<'a> PredicateOps<'a> for DexPredicate<'a> {
+impl<'a> DexPredicate<'a>
+where
+    Self: Sized + From<Predicate<'a>>,
+{
     /// Setup the circuit and related parameters
     ///
     /// Inputs:
@@ -307,6 +407,7 @@ impl<'a> PredicateOps<'a> for DexPredicate<'a> {
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
         is_birth_predicate: bool,
+        birth_mode: Option<BirthPredicateMode>,
     ) -> Result<(), DPCApiError> {
         let mut final_circuit = if is_birth_predicate {
             DexPredicateCircuit::gen_birth_circuit(
@@ -315,6 +416,7 @@ impl<'a> PredicateOps<'a> for DexPredicate<'a> {
                 memo,
                 blinding_local_data,
                 comm_local_data,
+                birth_mode,
             )?
         } else {
             DexPredicateCircuit::gen_death_circuit(
@@ -364,8 +466,13 @@ mod test {
         structs::compress_local_data,
         types::InnerScalarField,
     };
+    use ark_bw6_761::g1::Parameters;
+    use ark_ec::bls12::Bls12;
     use ark_ff::{UniformRand, Zero};
+    use ark_serialize::CanonicalDeserialize;
     use ark_std::{rand::Rng, test_rng, vec};
+    use jf_plonk::proof_system::structs::UniversalSrs;
+    use jf_utils::field_elem::deserialize;
 
     const NON_NATIVE_ASSET_ID: u64 = 3u64;
 
@@ -379,14 +486,20 @@ mod test {
         // let max_inner_degree = (1 << 17) + 4;
         let timer = Instant::now();
         // read the inner test srs from file
-        let reader = std::io::BufReader::new(std::fs::File::open("src/examples/test_setup_inner_17.bin").unwrap());
-        let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> = UniversalSrs::deserialize_unchecked(reader)?;
+        let reader = std::io::BufReader::new(
+            std::fs::File::open("src/examples/test_setup_inner_17.bin").unwrap(),
+        );
+        let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> =
+            UniversalSrs::deserialize_unchecked(reader)?;
         // let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> = universal_setup_inner(max_inner_degree, rng)?;
         println!("inner_srs setup time: {:?}", timer.elapsed());
         // let max_outer_degree = (1 << 18) + 4;
         // let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = universal_setup_outer(max_outer_degree, rng)?;
-        let reader = std::io::BufReader::new(std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap());
-        let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> = UniversalSrs::deserialize_unchecked(reader)?;
+        let reader = std::io::BufReader::new(
+            std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap(),
+        );
+        let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> =
+            UniversalSrs::deserialize_unchecked(reader)?;
         println!("outer_srs setup time: {:?}", timer.elapsed());
 
         // good path: input.len() == output.len()
@@ -404,6 +517,7 @@ mod test {
             fee_out,
             input_note_values.as_ref(),
             output_note_values.as_ref(),
+            Some(BirthPredicateMode::Mint)
         )
         .is_ok());
 
@@ -422,6 +536,7 @@ mod test {
             fee_out,
             input_note_values.as_ref(),
             output_note_values.as_ref(),
+            None
         )
         .is_err());
 
@@ -437,6 +552,7 @@ mod test {
         fee_out: u64,
         input_note_values: &[u64],
         output_note_values: &[u64],
+        birth_predicate_mode: Option<BirthPredicateMode>,
     ) -> Result<(), DPCApiError> {
         let num_non_fee_inputs = input_note_values.len();
 
@@ -499,6 +615,7 @@ mod test {
             blinding_local_data,
             comm_local_data,
             true,
+            birth_predicate_mode,
         )?;
         death_predicate.finalize_for_proving(
             &entire_input_notes,
@@ -507,6 +624,7 @@ mod test {
             blinding_local_data,
             comm_local_data,
             false,
+            None,
         )?;
 
         let input_death_predicates = vec![death_predicate.0; num_non_fee_inputs];
