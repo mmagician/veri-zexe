@@ -111,6 +111,11 @@ impl<'a> From<Predicate<'a>> for DexPredicate<'a> {
     }
 }
 
+enum DeathPredicateMode {
+    Exchange,
+    Cancel,
+}
+
 enum BirthPredicateMode {
     Mint,
     Conserve,
@@ -248,6 +253,7 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
+        mode: Option<DeathPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         let mut death_circuit = PlonkCircuit::new_turbo_plonk();
 
@@ -304,6 +310,7 @@ where
             &dummy_memo,
             dummy_blinding_local_data,
             dummy_comm_local_data,
+            None,
         )
     }
 
@@ -313,6 +320,7 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
+        mode: Option<DeathPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         Self::gen_death_circuit_core(
             entire_input_notes,
@@ -320,6 +328,7 @@ where
             memo,
             blinding_local_data,
             comm_local_data,
+            mode,
         )
     }
 }
@@ -408,6 +417,7 @@ where
         comm_local_data: InnerScalarField,
         is_birth_predicate: bool,
         birth_mode: Option<BirthPredicateMode>,
+        death_mode: Option<DeathPredicateMode>,
     ) -> Result<(), DPCApiError> {
         let mut final_circuit = if is_birth_predicate {
             DexPredicateCircuit::gen_birth_circuit(
@@ -425,6 +435,7 @@ where
                 memo,
                 blinding_local_data,
                 comm_local_data,
+                death_mode,
             )?
         };
 
@@ -517,7 +528,8 @@ mod test {
             fee_out,
             input_note_values.as_ref(),
             output_note_values.as_ref(),
-            Some(BirthPredicateMode::Mint)
+            Some(BirthPredicateMode::Mint),
+            None
         )
         .is_ok());
 
@@ -536,7 +548,8 @@ mod test {
             fee_out,
             input_note_values.as_ref(),
             output_note_values.as_ref(),
-            None
+            None,
+            Some(DeathPredicateMode::Exchange)
         )
         .is_err());
 
@@ -553,6 +566,7 @@ mod test {
         input_note_values: &[u64],
         output_note_values: &[u64],
         birth_predicate_mode: Option<BirthPredicateMode>,
+        death_predicate_mode: Option<DeathPredicateMode>,
     ) -> Result<(), DPCApiError> {
         let num_non_fee_inputs = input_note_values.len();
 
@@ -616,6 +630,7 @@ mod test {
             comm_local_data,
             true,
             birth_predicate_mode,
+            None,
         )?;
         death_predicate.finalize_for_proving(
             &entire_input_notes,
@@ -625,6 +640,7 @@ mod test {
             comm_local_data,
             false,
             None,
+            death_predicate_mode,
         )?;
 
         let input_death_predicates = vec![death_predicate.0; num_non_fee_inputs];
