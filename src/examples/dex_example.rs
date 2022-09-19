@@ -221,13 +221,6 @@ where
         comm_local_data: InnerScalarField,
         mode: Option<BirthPredicateMode>,
     ) -> Result<Self, DPCApiError> {
-        if entire_input_notes.len() != entire_output_records.len() {
-            return Err(DPCApiError::GeneralError(format!(
-                "Input length ({}) does not match output length ({})",
-                entire_input_notes.len(),
-                entire_output_records.len()
-            )));
-        }
         Self::gen_birth_circuit_core(
             entire_input_notes,
             entire_output_records,
