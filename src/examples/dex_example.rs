@@ -467,7 +467,7 @@ mod test {
     use crate::{
         constants::MEMO_LEN,
         errors::DPCApiError,
-        examples::tests::{build_notes, build_notes_and_records},
+        examples::tests::{build_notes, build_dex_notes_and_records},
         keys::KeyChainMasterKey,
         proofs::transaction::*,
         structs::compress_local_data,
@@ -580,7 +580,7 @@ mod test {
         // - Tcash input notes
         // - Tcash output notes
         // =================================
-        let (entire_input_records, entire_output_records) = build_notes_and_records(
+        let (entire_input_records, entire_output_records) = build_dex_notes_and_records(
             rng,
             &addr,
             &pgk,

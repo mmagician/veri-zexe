@@ -12,9 +12,9 @@
 //! This module implements a few examples with predicates.
 
 mod dex_example;
+mod generate_test_setup;
 mod restricted_zcash_example;
 mod tornado_cash_example;
-mod generate_test_setup;
 pub(crate) mod zcash_example;
 
 use crate::{
@@ -407,5 +407,86 @@ pub(crate) mod tests {
             input_notes.push(input_note);
         }
         Ok(input_notes)
+    }
+
+    pub(crate) fn build_dex_notes_and_records<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        addr: &DiversifiedAddress,
+        pgk: &ProofGenerationKey,
+        fee_in: u64,
+        fee_out: u64,
+        asset_id: u64,
+        input_values: &[u64],
+        output_values: &[u64],
+        birth_pid: PolicyIdentifier,
+        death_pid: PolicyIdentifier,
+    ) -> Result<(Vec<RecordOpening>, Vec<RecordOpening>), DPCApiError> {
+        // fee in record
+        let fee_in_ro = RecordOpening::new_native_asset(
+            rng,
+            addr.clone(),
+            fee_in as u128,
+            0,
+            Nullifier::default(),
+        );
+        let fee_nullifier = fee_in_ro.nullify(&pgk.nk)?;
+
+        // fee out record
+        let fee_out_ro = RecordOpening::new_native_asset(
+            rng,
+            addr.clone(),
+            fee_out as u128,
+            0,
+            fee_nullifier.clone(),
+        );
+
+        // input records
+        let mut inputs = vec![fee_in_ro];
+        for (i, &value) in input_values.iter().enumerate() {
+            let input_ro;
+            if value == 0 {
+                input_ro = RecordOpening::dummy();
+            } else {
+                let input_payload = Payload::from_scalars(&[
+                    InnerScalarField::from(asset_id),
+                    InnerScalarField::from(value),
+                ])?;
+
+                input_ro = RecordOpening::new(
+                    rng,
+                    addr.clone(),
+                    input_payload,
+                    InnerScalarField::zero(),
+                    death_pid.0,
+                    i + 1,
+                    Nullifier::default(),
+                );
+            }
+
+            inputs.push(input_ro);
+        }
+
+        // output records
+        let mut outputs = vec![fee_out_ro];
+        for (i, &value) in output_values.iter().enumerate() {
+            let input_payload = Payload::from_scalars(&[
+                InnerScalarField::from(asset_id),
+                InnerScalarField::from(value),
+            ])?;
+
+            let output_ro = RecordOpening::new(
+                rng,
+                addr.clone(),
+                input_payload,
+                birth_pid.0,
+                InnerScalarField::zero(),
+                i + 1,
+                fee_nullifier.clone(),
+            );
+
+            outputs.push(output_ro);
+        }
+
+        Ok((inputs, outputs))
     }
 }
