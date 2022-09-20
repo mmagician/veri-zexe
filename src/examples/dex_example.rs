@@ -76,6 +76,7 @@
 
 use crate::{
     circuit::{
+        self,
         local_data::local_data_commitment_circuit,
         structs::{NoteInputVar, RecordOpeningVar},
     },
@@ -189,6 +190,26 @@ where
         // they should both be satisfied
         let res = birth_circuit.logic_and(is_input_two, is_output_two)?;
         birth_circuit.equal_gate(res, birth_circuit.one())?;
+
+        // 3. when the mode is mint, inputs should be dummy, there should be only one non-dummy output
+        if let Some(birth_mode) = mode {
+            match birth_mode {
+                BirthPredicateMode::Mint => {
+                    let mut is_input_all_dummy = birth_circuit.one();
+                    // check that all inputs are dummy
+                    for input in entire_input_notes_vars.iter() {
+                        let is_dummy_var =
+                            birth_circuit.create_constant_variable(InnerScalarField::from(
+                                input.record_opening_var.payload.is_dummy as u64,
+                            ))?;
+                        is_input_all_dummy =
+                            birth_circuit.logic_and(is_input_all_dummy, is_dummy_var)?;
+                    }
+                    birth_circuit.equal_gate(is_input_all_dummy, birth_circuit.one())?;
+                },
+                BirthPredicateMode::Conserve => {},
+            }
+        }
 
         // pad the birth circuit with dummy gates so that it will always be greater
         // than the supported death ones
@@ -503,7 +524,89 @@ mod test {
             UniversalSrs::deserialize_unchecked(reader)?;
         println!("outer_srs setup time: {:?}", timer.elapsed());
 
-        // good path: input.len() == output.len()
+        // good path: mode = mint, all inputs are dummy
+        let fee_in = 300;
+        let fee = 5;
+        let fee_out = 295;
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: true,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: true,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
+        assert!(test_example_transaction_helper(
+            &inner_srs,
+            &outer_srs,
+            fee_in,
+            fee,
+            fee_out,
+            input_note_values.as_ref(),
+            output_note_values.as_ref(),
+            Some(BirthPredicateMode::Mint),
+            None
+        )
+        .is_ok());
+
+        // bad path: mode = mint, one input is not dummy
+        let fee_in = 300;
+        let fee = 5;
+        let fee_out = 295;
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: true,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
+        assert!(test_example_transaction_helper(
+            &inner_srs,
+            &outer_srs,
+            fee_in,
+            fee,
+            fee_out,
+            input_note_values.as_ref(),
+            output_note_values.as_ref(),
+            Some(BirthPredicateMode::Mint),
+            None
+        )
+        .is_err());
+
+        // good path: mode = conserve
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
@@ -539,7 +642,7 @@ mod test {
             fee_out,
             input_note_values.as_ref(),
             output_note_values.as_ref(),
-            Some(BirthPredicateMode::Mint),
+            Some(BirthPredicateMode::Conserve),
             None
         )
         .is_ok());
