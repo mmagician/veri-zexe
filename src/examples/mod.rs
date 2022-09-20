@@ -409,6 +409,13 @@ pub(crate) mod tests {
         Ok(input_notes)
     }
 
+    pub(crate) struct DexRecord {
+        pub(crate) asset_id: u64,
+        // depending on the mode, this is either to be minted or conserved
+        pub(crate) value: u64,
+        pub(crate) is_dummy: bool,
+    }
+
     pub(crate) fn build_dex_notes_and_records<R: RngCore + CryptoRng>(
         rng: &mut R,
         addr: &DiversifiedAddress,
@@ -416,8 +423,8 @@ pub(crate) mod tests {
         fee_in: u64,
         fee_out: u64,
         asset_id: u64,
-        input_values: &[u64],
-        output_values: &[u64],
+        input_values: &[DexRecord],
+        output_values: &[DexRecord],
         birth_pid: PolicyIdentifier,
         death_pid: PolicyIdentifier,
     ) -> Result<(Vec<RecordOpening>, Vec<RecordOpening>), DPCApiError> {
@@ -442,14 +449,14 @@ pub(crate) mod tests {
 
         // input records
         let mut inputs = vec![fee_in_ro];
-        for (i, &value) in input_values.iter().enumerate() {
+        for (i, record) in input_values.iter().enumerate() {
             let input_ro;
-            if value == 0 {
+            if record.is_dummy {
                 input_ro = RecordOpening::dummy();
             } else {
                 let input_payload = Payload::from_scalars(&[
                     InnerScalarField::from(asset_id),
-                    InnerScalarField::from(value),
+                    InnerScalarField::from(record.value),
                 ])?;
 
                 input_ro = RecordOpening::new(
@@ -468,10 +475,10 @@ pub(crate) mod tests {
 
         // output records
         let mut outputs = vec![fee_out_ro];
-        for (i, &value) in output_values.iter().enumerate() {
+        for (i, record) in output_values.iter().enumerate() {
             let input_payload = Payload::from_scalars(&[
                 InnerScalarField::from(asset_id),
-                InnerScalarField::from(value),
+                InnerScalarField::from(record.value),
             ])?;
 
             let output_ro = RecordOpening::new(

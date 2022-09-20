@@ -467,7 +467,7 @@ mod test {
     use crate::{
         constants::MEMO_LEN,
         errors::DPCApiError,
-        examples::tests::{build_notes, build_dex_notes_and_records},
+        examples::tests::{build_dex_notes_and_records, build_notes, DexRecord},
         keys::KeyChainMasterKey,
         proofs::transaction::*,
         structs::compress_local_data,
@@ -507,9 +507,30 @@ mod test {
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
-        let input_note_values = [10, 5];
-        let output_note_values = [0, 10];
-
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: false,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
         assert!(test_example_transaction_helper(
             &inner_srs,
             &outer_srs,
@@ -527,8 +548,35 @@ mod test {
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
-        let input_note_values = [10, 5];
-        let output_note_values = [0, 10, 5];
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: false,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 2,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 2,
+                is_dummy: false,
+            },
+        ];
 
         assert!(test_example_transaction_helper(
             &inner_srs,
@@ -553,8 +601,8 @@ mod test {
         fee_in: u64,
         fee: u64,
         fee_out: u64,
-        input_note_values: &[u64],
-        output_note_values: &[u64],
+        input_note_values: &[DexRecord],
+        output_note_values: &[DexRecord],
         birth_predicate_mode: Option<BirthPredicateMode>,
         death_predicate_mode: Option<DeathPredicateMode>,
     ) -> Result<(), DPCApiError> {
