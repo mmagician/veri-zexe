@@ -59,6 +59,7 @@ impl From<PredicateCircuit> for DexPredicateCircuit {
 }
 
 // A simple wrapper of predicate
+#[derive(Clone)]
 struct DexPredicate<'a>(Predicate<'a>);
 impl<'a> From<Predicate<'a>> for DexPredicate<'a> {
     fn from(predicate: Predicate<'a>) -> Self {

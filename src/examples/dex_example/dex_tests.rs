@@ -44,6 +44,10 @@ mod test {
         let fee = 5;
         let fee_out = 295;
 
+        let num_non_fee_inputs = 2;
+        let (dpc_pk, dpc_vk, birth_predicate, birth_pid, death_predicate, death_pid) =
+            DexPredicate::preprocess(&inner_srs, &outer_srs, num_non_fee_inputs + 1)?;
+
         // good path: mode = mint, all inputs are dummy
         let input_note_values = [
             DexRecord {
@@ -78,7 +82,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "good path: mode = mint, all inputs are dummy");
 
@@ -116,7 +126,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "bad path: mode = mint, both outputs are non-dummy");
 
@@ -154,7 +170,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_err(), "bad path: mode = mint, one input is not dummy");
 
@@ -192,7 +214,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Conserve),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "good path: mode = conserve, no dummy inputs");
 
@@ -230,7 +258,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Conserve),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_err(), "bad path: mode = conserve, one dummy input");
 
@@ -295,13 +329,16 @@ mod test {
         output_note_values: &[DexRecord],
         birth_predicate_mode: Option<BirthPredicateMode>,
         death_predicate_mode: Option<DeathPredicateMode>,
+        dpc_pk: DPCProvingKey,
+        dpc_vk: DPCVerifyingKey,
+        mut birth_predicate: DexPredicate,
+        birth_pid: PolicyIdentifier,
+        mut death_predicate: DexPredicate,
+        death_pid: PolicyIdentifier,
     ) -> Result<(), DPCApiError> {
         let num_non_fee_inputs = input_note_values.len();
 
         let rng = &mut test_rng();
-
-        let (dpc_pk, dpc_vk, mut birth_predicate, birth_pid, mut death_predicate, death_pid) =
-            DexPredicate::preprocess(inner_srs, outer_srs, num_non_fee_inputs + 1)?;
 
         // generate proof generation key and addresses
         let mut wsk = [0u8; 32];
