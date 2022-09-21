@@ -121,6 +121,41 @@ enum BirthPredicateMode {
     Conserve,
 }
 
+impl From<BirthPredicateMode> for usize {
+    fn from(mode: BirthPredicateMode) -> Self {
+        match mode {
+            BirthPredicateMode::Mint => 0,
+            BirthPredicateMode::Conserve => 1,
+        }
+    }
+}
+
+impl From<DeathPredicateMode> for usize {
+    fn from(mode: DeathPredicateMode) -> Self {
+        match mode {
+            DeathPredicateMode::Exchange => 0,
+            DeathPredicateMode::Cancel => 1,
+        }
+    }
+}
+
+pub struct ModeMemo([InnerScalarField; MEMO_LEN]);
+
+impl ModeMemo {
+    fn new(birth_mode: Option<BirthPredicateMode>, death_mode: Option<DeathPredicateMode>) -> Self {
+        let mut memo = [InnerScalarField::zero(); MEMO_LEN];
+        if let Some(mode) = birth_mode {
+            let i: usize = mode.into();
+            memo[i] = InnerScalarField::one();
+        }
+        if let Some(mode) = death_mode {
+            let i: usize = mode.into();
+            memo[i + 2] = InnerScalarField::one();
+        }
+        Self(memo)
+    }
+}
+
 // Using the default birth predicate circuit to argue
 // 1. all asset_ids match
 // 2. sum inputs = sum outputs
@@ -143,7 +178,6 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
-        mode: Option<BirthPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         let mut birth_circuit = PlonkCircuit::new_turbo_plonk();
 
@@ -225,7 +259,6 @@ where
             &dummy_memo,
             dummy_blinding_local_data,
             dummy_comm_local_data,
-            None,
         )
     }
 
@@ -235,7 +268,6 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
-        mode: Option<BirthPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         Self::gen_birth_circuit_core(
             entire_input_notes,
@@ -243,7 +275,6 @@ where
             memo,
             blinding_local_data,
             comm_local_data,
-            mode,
         )
     }
 }
@@ -262,7 +293,6 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
-        mode: Option<DeathPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         let mut death_circuit = PlonkCircuit::new_turbo_plonk();
 
@@ -319,7 +349,6 @@ where
             &dummy_memo,
             dummy_blinding_local_data,
             dummy_comm_local_data,
-            None,
         )
     }
 
@@ -329,7 +358,6 @@ where
         memo: &[InnerScalarField; MEMO_LEN],
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
-        mode: Option<DeathPredicateMode>,
     ) -> Result<Self, DPCApiError> {
         Self::gen_death_circuit_core(
             entire_input_notes,
@@ -337,7 +365,6 @@ where
             memo,
             blinding_local_data,
             comm_local_data,
-            mode,
         )
     }
 }
@@ -425,8 +452,6 @@ where
         blinding_local_data: InnerScalarField,
         comm_local_data: InnerScalarField,
         is_birth_predicate: bool,
-        birth_mode: Option<BirthPredicateMode>,
-        death_mode: Option<DeathPredicateMode>,
     ) -> Result<(), DPCApiError> {
         let mut final_circuit = if is_birth_predicate {
             DexPredicateCircuit::gen_birth_circuit(
@@ -435,7 +460,6 @@ where
                 memo,
                 blinding_local_data,
                 comm_local_data,
-                birth_mode,
             )?
         } else {
             DexPredicateCircuit::gen_death_circuit(
@@ -444,7 +468,6 @@ where
                 memo,
                 blinding_local_data,
                 comm_local_data,
-                death_mode,
             )?
         };
 
@@ -739,7 +762,7 @@ mod test {
         let entire_input_notes = build_notes(&entire_input_records, &pgk, &rd)?;
 
         // prepare memo
-        let dummy_memo = [InnerScalarField::zero(); MEMO_LEN];
+        let dummy_memo = ModeMemo::new(birth_predicate_mode, death_predicate_mode).0;
 
         // update the predicates to use the correct witness circuit that matches the
         // correct local data commitment
@@ -762,8 +785,6 @@ mod test {
             blinding_local_data,
             comm_local_data,
             true,
-            birth_predicate_mode,
-            None,
         )?;
         death_predicate.finalize_for_proving(
             &entire_input_notes,
@@ -772,8 +793,6 @@ mod test {
             blinding_local_data,
             comm_local_data,
             false,
-            None,
-            death_predicate_mode,
         )?;
 
         let input_death_predicates = vec![death_predicate.0; num_non_fee_inputs];
