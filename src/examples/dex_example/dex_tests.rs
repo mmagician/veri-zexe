@@ -27,13 +27,13 @@ mod test {
         let timer = Instant::now();
         // read the inner test srs from file
         let reader = std::io::BufReader::new(
-            std::fs::File::open("src/examples/test_setup_inner_17.bin").unwrap(),
+            std::fs::File::open("src/examples/test_setup_inner_16.bin").unwrap(),
         );
         let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> =
             UniversalSrs::deserialize_unchecked(reader)?;
         println!("inner_srs setup time: {:?}", timer.elapsed());
         let reader = std::io::BufReader::new(
-            std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap(),
+            std::fs::File::open("src/examples/test_setup_outer_17.bin").unwrap(),
         );
         let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> =
             UniversalSrs::deserialize_unchecked(reader)?;
@@ -43,6 +43,10 @@ mod test {
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
+
+        let num_non_fee_inputs = 2;
+        let (dpc_pk, dpc_vk, birth_predicate, birth_pid, death_predicate, death_pid) =
+            DexPredicate::preprocess(&inner_srs, &outer_srs, num_non_fee_inputs + 1)?;
 
         // good path: mode = mint, all inputs are dummy
         let input_note_values = [
@@ -78,7 +82,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "good path: mode = mint, all inputs are dummy");
 
@@ -116,7 +126,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "bad path: mode = mint, both outputs are non-dummy");
 
@@ -154,7 +170,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Mint),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_err(), "bad path: mode = mint, one input is not dummy");
 
@@ -192,7 +214,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Conserve),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_ok(), "good path: mode = conserve, no dummy inputs");
 
@@ -230,7 +258,13 @@ mod test {
             input_note_values.as_ref(),
             output_note_values.as_ref(),
             Some(BirthPredicateMode::Conserve),
-            None
+            None,
+            dpc_pk.clone(),
+            dpc_vk.clone(),
+            birth_predicate.clone(),
+            birth_pid,
+            death_predicate.clone(),
+            death_pid,
         )
         .is_err(), "bad path: mode = conserve, one dummy input");
 
@@ -295,13 +329,16 @@ mod test {
         output_note_values: &[DexRecord],
         birth_predicate_mode: Option<BirthPredicateMode>,
         death_predicate_mode: Option<DeathPredicateMode>,
+        dpc_pk: DPCProvingKey,
+        dpc_vk: DPCVerifyingKey,
+        mut birth_predicate: DexPredicate,
+        birth_pid: PolicyIdentifier,
+        mut death_predicate: DexPredicate,
+        death_pid: PolicyIdentifier,
     ) -> Result<(), DPCApiError> {
         let num_non_fee_inputs = input_note_values.len();
 
         let rng = &mut test_rng();
-
-        let (dpc_pk, dpc_vk, mut birth_predicate, birth_pid, mut death_predicate, death_pid) =
-            DexPredicate::preprocess(inner_srs, outer_srs, num_non_fee_inputs + 1)?;
 
         // generate proof generation key and addresses
         let mut wsk = [0u8; 32];
