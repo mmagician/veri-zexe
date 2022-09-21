@@ -76,7 +76,6 @@
 
 use crate::{
     circuit::{
-        self,
         local_data::local_data_commitment_circuit,
         structs::{NoteInputVar, RecordOpeningVar},
     },
@@ -523,7 +522,6 @@ mod test {
 
     use super::*;
     use crate::{
-        constants::MEMO_LEN,
         errors::DPCApiError,
         examples::tests::{build_dex_notes_and_records, build_notes, DexRecord},
         keys::KeyChainMasterKey,
@@ -533,7 +531,7 @@ mod test {
     };
 
     use ark_ec::bls12::Bls12;
-    use ark_ff::{UniformRand, Zero};
+    use ark_ff::{UniformRand};
     use ark_serialize::CanonicalDeserialize;
     use ark_std::{rand::Rng, test_rng, vec};
     use jf_plonk::proof_system::structs::UniversalSrs;
