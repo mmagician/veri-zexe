@@ -642,46 +642,81 @@ mod test {
         )
         .is_err());
 
-        // good path: mode = conserve
-        // let fee_in = 300;
-        // let fee = 5;
-        // let fee_out = 295;
-        // let input_note_values = [
-        //     DexRecord {
-        //         asset_id: 1,
-        //         value: 10,
-        //         is_dummy: false,
-        //     },
-        //     DexRecord {
-        //         asset_id: 1,
-        //         value: 5,
-        //         is_dummy: false,
-        //     },
-        // ];
-        // let output_note_values = [
-        //     DexRecord {
-        //         asset_id: 1,
-        //         value: 11,
-        //         is_dummy: false,
-        //     },
-        //     DexRecord {
-        //         asset_id: 1,
-        //         value: 4,
-        //         is_dummy: false,
-        //     },
-        // ];
-        // assert!(test_example_transaction_helper(
-        //     &inner_srs,
-        //     &outer_srs,
-        //     fee_in,
-        //     fee,
-        //     fee_out,
-        //     input_note_values.as_ref(),
-        //     output_note_values.as_ref(),
-        //     Some(BirthPredicateMode::Conserve),
-        //     None
-        // )
-        // .is_ok());
+        // good path: mode = conserve, no dummy inputs
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: false,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
+        assert!(test_example_transaction_helper(
+            &inner_srs,
+            &outer_srs,
+            fee_in,
+            fee,
+            fee_out,
+            input_note_values.as_ref(),
+            output_note_values.as_ref(),
+            Some(BirthPredicateMode::Conserve),
+            None
+        )
+        .is_ok());
+
+        // bad path: mode = conserve, one dummy input
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: true,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: false,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
+                is_dummy: false,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
+        assert!(test_example_transaction_helper(
+            &inner_srs,
+            &outer_srs,
+            fee_in,
+            fee,
+            fee_out,
+            input_note_values.as_ref(),
+            output_note_values.as_ref(),
+            Some(BirthPredicateMode::Conserve),
+            None
+        )
+        .is_err());
 
         // bad path: input.len() != output.len()
         // let fee_in = 300;
