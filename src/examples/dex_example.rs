@@ -561,10 +561,12 @@ mod test {
             UniversalSrs::deserialize_unchecked(reader)?;
         println!("outer_srs setup time: {:?}", timer.elapsed());
 
-        // good path: mode = mint, all inputs are dummy
+        // fees are the same for all tx's
         let fee_in = 300;
         let fee = 5;
         let fee_out = 295;
+        
+        // good path: mode = mint, all inputs are dummy
         let input_note_values = [
             DexRecord {
                 asset_id: 1,
@@ -603,9 +605,6 @@ mod test {
         .is_ok());
 
         // bad path: mode = mint, one input is not dummy
-        let fee_in = 300;
-        let fee = 5;
-        let fee_out = 295;
         let input_note_values = [
             DexRecord {
                 asset_id: 1,
