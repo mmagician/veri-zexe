@@ -27,13 +27,13 @@ mod test {
         let timer = Instant::now();
         // read the inner test srs from file
         let reader = std::io::BufReader::new(
-            std::fs::File::open("src/examples/test_setup_inner_17.bin").unwrap(),
+            std::fs::File::open("src/examples/test_setup_inner_16.bin").unwrap(),
         );
         let inner_srs: UniversalSrs<Bls12<ark_bls12_377::Parameters>> =
             UniversalSrs::deserialize_unchecked(reader)?;
         println!("inner_srs setup time: {:?}", timer.elapsed());
         let reader = std::io::BufReader::new(
-            std::fs::File::open("src/examples/test_setup_outer_18.bin").unwrap(),
+            std::fs::File::open("src/examples/test_setup_outer_17.bin").unwrap(),
         );
         let outer_srs: UniversalSrs<ark_ec::bw6::BW6<ark_bw6_761::Parameters>> =
             UniversalSrs::deserialize_unchecked(reader)?;
