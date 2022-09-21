@@ -452,7 +452,7 @@ pub(crate) mod tests {
         for (i, record) in input_values.iter().enumerate() {
             let input_ro;
             if record.is_dummy {
-                input_ro = RecordOpening::dummy();
+                input_ro = RecordOpening::dummy_with_pid(PolicyIdentifier::default(), death_pid);
             } else {
                 let input_payload = Payload::from_scalars(&[
                     InnerScalarField::from(asset_id),
