@@ -189,7 +189,7 @@ where
         // but one of them is 1
         birth_circuit.logic_or_gate(is_mint, is_conserve)?;
 
-        // 4. check mode mint & conserve
+        // 4. check mode mint & conserve: input notes
         let one_var = birth_circuit.one();
         let zero_var = birth_circuit.zero();
         // when the mode is mint, inputs should be dummy, check AND(input_1.is_dummy, input_2.is_dummy) == 1
@@ -213,6 +213,36 @@ where
         // check that the mode is satisfied as dictated by the memo
         birth_circuit.equal_gate(is_mint_satisfied, is_mint)?;
         birth_circuit.equal_gate(is_conserve_satisfied, is_conserve)?;
+
+        // 5. check mode mint & conserve: output notes
+        // when the mode is mint, one output should be dummy, check XOR(output_1.is_dummy, output_2.is_dummy) == 1
+        let mut mint_and_gate = birth_circuit.create_variable(InnerScalarField::one())?;
+        let mut mint_or_gate = birth_circuit.create_variable(InnerScalarField::zero())?;
+        // when mode is conserve, none of the inputs should be dummy, check OR(input_1.is_dummy, input_2.is_dummy) == 0
+        // let mut is_conserve_satisfied = birth_circuit.create_variable(InnerScalarField::zero())?;
+        // check that all inputs are dummy for mint, and none are dummy if conserve
+        for output in entire_outputs_vars.iter().skip(num_of_fee_records as usize) {
+            let is_dummy_var = output.payload.is_dummy;
+            mint_and_gate = birth_circuit.logic_and(is_dummy_var, mint_and_gate)?;
+            mint_or_gate = birth_circuit.logic_or(is_dummy_var, mint_or_gate)?;
+            // is_conserve_satisfied = birth_circuit.logic_or(is_dummy_var, is_conserve_satisfied)?;
+        }
+        // they are not both == 1
+        let mint_and_gate = birth_circuit.check_equal(mint_and_gate, zero_var)?;
+        // but one of them is 1
+        let mint_or_gate = birth_circuit.check_equal(mint_or_gate, one_var)?;
+
+        // mint mode is satisfied if all inputs are dummy
+        // let is_mint_satisfied = birth_circuit.check_equal(is_mint_satisfied, one_var)?;
+        // conserve mode is satisfied if all inputs are not dummy
+        // let is_conserve_satisfied = birth_circuit.check_equal(is_conserve_satisfied, zero_var)?;
+
+        // check that the mode is satisfied as dictated by the memo
+        let mint_satisfied = birth_circuit.logic_and(mint_and_gate, mint_or_gate)?;
+        // TODO check if we can ever have mode != mint, but with the mint requirements satisifed
+        birth_circuit.equal_gate(mint_satisfied, is_mint)?;
+
+        // birth_circuit.equal_gate(is_conserve_satisfied, is_conserve)?;
 
         // pad the birth circuit with dummy gates so that it will always be greater
         // than the supported death ones

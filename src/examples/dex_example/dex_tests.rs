@@ -61,6 +61,44 @@ mod test {
             DexRecord {
                 asset_id: 1,
                 value: 11,
+                is_dummy: true,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 4,
+                is_dummy: false,
+            },
+        ];
+        assert!(test_example_transaction_helper(
+            &inner_srs,
+            &outer_srs,
+            fee_in,
+            fee,
+            fee_out,
+            input_note_values.as_ref(),
+            output_note_values.as_ref(),
+            Some(BirthPredicateMode::Mint),
+            None
+        )
+        .is_ok(), "good path: mode = mint, all inputs are dummy");
+
+        // bad path: mode = mint, all inputs are dummy, but two outputs are non-dummy
+        let input_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 10,
+                is_dummy: true,
+            },
+            DexRecord {
+                asset_id: 1,
+                value: 5,
+                is_dummy: true,
+            },
+        ];
+        let output_note_values = [
+            DexRecord {
+                asset_id: 1,
+                value: 11,
                 is_dummy: false,
             },
             DexRecord {
@@ -80,7 +118,7 @@ mod test {
             Some(BirthPredicateMode::Mint),
             None
         )
-        .is_ok());
+        .is_ok(), "bad path: mode = mint, both outputs are non-dummy");
 
         // bad path: mode = mint, one input is not dummy
         let input_note_values = [
@@ -118,7 +156,7 @@ mod test {
             Some(BirthPredicateMode::Mint),
             None
         )
-        .is_err());
+        .is_err(), "bad path: mode = mint, one input is not dummy");
 
         // good path: mode = conserve, no dummy inputs
         let input_note_values = [
@@ -156,7 +194,7 @@ mod test {
             Some(BirthPredicateMode::Conserve),
             None
         )
-        .is_ok());
+        .is_ok(), "good path: mode = conserve, no dummy inputs");
 
         // bad path: mode = conserve, one dummy input
         let input_note_values = [
@@ -194,7 +232,7 @@ mod test {
             Some(BirthPredicateMode::Conserve),
             None
         )
-        .is_err());
+        .is_err(), "bad path: mode = conserve, one dummy input");
 
         // bad path: input.len() != output.len()
         // let fee_in = 300;
