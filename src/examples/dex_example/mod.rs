@@ -26,7 +26,7 @@
 //!     - if mode is `mint`, there should only be dummy input notes
 //!     - if mode is `mint`, there should onlyb be one (non-dummy) output record
 //!     - if the mode is `conserve`, there should be two (non-dummy) input notes
-//!     - if the mode is `conserve`, the value of assets in & out 
+//!     - if the mode is `conserve`, the value of assets in & out
 //!       with same id should be conserved
 //!
 
@@ -88,8 +88,8 @@ impl From<BirthPredicateMode> for usize {
 impl From<DeathPredicateMode> for usize {
     fn from(mode: DeathPredicateMode) -> Self {
         match mode {
-            DeathPredicateMode::Exchange => 0,
-            DeathPredicateMode::Cancel => 1,
+            DeathPredicateMode::Exchange => 2,
+            DeathPredicateMode::Cancel => 3,
         }
     }
 }
@@ -105,7 +105,7 @@ impl ModeMemo {
         }
         if let Some(mode) = death_mode {
             let i: usize = mode.into();
-            memo[i + 2] = InnerScalarField::one();
+            memo[i] = InnerScalarField::one();
         }
         Self(memo)
     }
