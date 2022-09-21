@@ -225,6 +225,15 @@ where
         let res = birth_circuit.logic_and(is_input_two, is_output_two)?;
         birth_circuit.equal_gate(res, birth_circuit.one())?;
 
+        // 3. memo should only have one of the first two bits set to 1
+        let is_mint = memo_vars[0];
+        let is_conserve = memo_vars[1];
+        let mint_and_converve_var = birth_circuit.logic_and(is_mint, is_conserve)?;
+        // they are not both == 1
+        birth_circuit.equal_gate(mint_and_converve_var, birth_circuit.zero())?;
+        // but one of them is 1
+        birth_circuit.logic_or_gate(is_mint, is_conserve)?;
+
         // // 3. when the mode is mint, inputs should be dummy, there should be only one non-dummy output
         let one_var = birth_circuit.one();
         // check that all inputs are dummy
